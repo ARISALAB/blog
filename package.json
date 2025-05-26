@@ -1,0 +1,18 @@
+{
+  "name": "my-blog-app",
+  "version": "1.0.0",
+  "description": "My full-stack blog with Netlify Functions",
+  "main": "index.js", // Δεν έχει σημασία για το Netlify Functions, απλά placeholder
+  "scripts": {
+    "start": "node netlify/functions/server/server.js" // Προαιρετικό, για τοπική δοκιμή
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "serverless-http": "^3.2.0",
+    "sqlite3": "^5.1.7"
+  }
+}
