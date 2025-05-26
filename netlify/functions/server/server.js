@@ -3,67 +3,30 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const cors = require('cors');
 const serverless = require('serverless-http');
-// const cloudinary = require('cloudinary').v2; // <--- ΣΧΟΛΙΑΣΕ ΑΥΤΗ
-// const dotenv = require('dotenv'); // <--- ΣΧΟΛΙΑΣΕ ΑΥΤΗ
+const cloudinary = require('cloudinary').v2; // <--- ΕΝΕΡΓΟΠΟΙΗΣΕ ΑΥΤΗ ΤΗ ΓΡΑΜΜΗ
+const dotenv = require('dotenv'); // <--- ΕΝΕΡΓΟΠΟΙΗΣΕ ΑΥΤΗ ΤΗ ΓΡΑΜΜΗ
 
-// dotenv.config(); // <--- ΣΧΟΛΙΑΣΕ ΑΥΤΗ
+dotenv.config(); // <--- ΕΝΕΡΓΟΠΟΙΗΣΕ ΑΥΤΗ ΤΗ ΓΡΑΜΜΗ
 
 const app = express();
 
 let db;
 const dbPath = path.resolve('/tmp', 'blog.db');
 
-// Ρύθμιση Cloudinary - ΣΧΟΛΙΑΣΕ ΑΥΤΟ ΤΟ BLOCK ΠΡΟΣΩΡΙΝΑ
-/*
+// Ρύθμιση Cloudinary - ΕΝΕΡΓΟΠΟΙΗΣΕ ΑΥΤΟ ΤΟ BLOCK
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
-*/
 
-function initializeDb() {
-    return new Promise((resolve, reject) => {
-        if (db) {
-            console.log('Database already initialized.');
-            return resolve(db);
-        }
-        console.log('Attempting to initialize database...');
-        db = new sqlite3.Database(dbPath, (err) => {
-            if (err) {
-                console.error('CRITICAL: Error connecting to database:', err.message);
-                db = null;
-                return reject(err);
-            }
-            console.log('Successfully connected to the SQLite database.');
-            db.run(`CREATE TABLE IF NOT EXISTS posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL,
-                image_url TEXT, 
-                date DATETIME DEFAULT CURRENT_TIMESTAMP
-            )`, (err) => {
-                if (err) {
-                    console.error('CRITICAL: Error creating table:', err.message);
-                    db = null;
-                    return reject(err);
-                }
-                console.log('Posts table ensured to exist.');
-                resolve(db);
-            });
-        });
-    });
-}
+// ... (η initializeDb function μένει ως έχει, αφού τη διορθώσαμε) ...
 
 // Middlewares
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-app.use((req, res, next) => {
-    console.log('Incoming request path:', req.path);
-    console.log('Incoming request URL:', req.url);
-    next();
-});
+// ... (τα console.log middleware μένουν ως έχουν) ...
 
 // API Routes
 app.post('/.netlify/functions/server/api/posts', async (req, res) => {
@@ -71,29 +34,29 @@ app.post('/.netlify/functions/server/api/posts', async (req, res) => {
     try {
         await initializeDb();
         console.log('Database initialized successfully for POST request.');
-        const { title, content /*, imageBase64 */ } = req.body; // <--- imageBase64 προσωρινά εκτός
+        const { title, content, imageBase64 } = req.body; // <--- ΕΝΕΡΓΟΠΟΙΗΣΕ imageBase64
 
         if (!title || !content) {
             return res.status(400).json({ message: 'Title and content are required.' });
         }
 
-        let imageUrl = null; // Θα είναι πάντα null τώρα
-
-        // ΣΧΟΛΙΑΣΕ ΟΛΟ ΤΟ CLOUDINARY UPLOAD BLOCK ΠΡΟΣΩΡΙΝΑ
-        /*
+        let imageUrl = null;
+        // ΕΝΕΡΓΟΠΟΙΗΣΕ ΟΛΟ ΤΟ CLOUDINARY UPLOAD BLOCK
         if (imageBase64) {
             try {
                 const uploadResult = await cloudinary.uploader.upload(imageBase64, {
-                    folder: "blog_images"
+                    folder: "blog_images" // Μπορείς να ορίσεις έναν φάκελο στο Cloudinary
                 });
                 imageUrl = uploadResult.secure_url;
                 console.log('Image uploaded to Cloudinary:', imageUrl);
             } catch (uploadErr) {
                 console.error('Error uploading image to Cloudinary:', uploadErr.message);
+                // Εάν αποτύχει το ανέβασμα εικόνας, δεν πρέπει να εμποδίσει τη δημοσίευση του άρθρου χωρίς εικόνα
+                // Μπορείς να το χειριστείς πιο κομψά εδώ, π.χ. να επιστρέψεις σφάλμα ή απλά να το αγνοήσεις.
+                // Προς το παρόν, ας το επιστρέψουμε ως σφάλμα για να το δούμε.
                 return res.status(500).json({ message: 'Failed to upload image.', error: uploadErr.message });
             }
         }
-        */
 
         const stmt = db.prepare('INSERT INTO posts (title, content, image_url) VALUES (?, ?, ?)');
         stmt.run(title, content, imageUrl, function(err) {
@@ -110,27 +73,6 @@ app.post('/.netlify/functions/server/api/posts', async (req, res) => {
     }
 });
 
-app.get('/.netlify/functions/server/api/posts', async (req, res) => {
-    console.log('GET /.netlify/functions/server/api/posts route hit!');
-    try {
-        await initializeDb();
-        console.log('Database initialized successfully for GET request.');
-        db.all('SELECT * FROM posts ORDER BY date DESC', [], (err, rows) => {
-            if (err) {
-                console.error('Error fetching posts:', err.message);
-                return res.status(500).json({ message: 'Failed to fetch posts.' });
-            }
-            res.status(200).json(rows);
-        });
-    } catch (err) {
-        console.error('Unhandled error in GET route execution:', err);
-        res.status(500).json({ message: 'Database initialization failed.', error: err.message });
-    }
-});
-
-app.all('*', (req, res) => {
-    console.log('Caught by ALL route:', req.method, req.path);
-    res.status(404).json({ message: `Route not found by Express for ${req.method} ${req.path}`, fullPath: req.url });
-});
+// ... (το app.get παραμένει ως έχει) ...
 
 module.exports.handler = serverless(app);
