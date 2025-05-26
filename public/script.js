@@ -1,136 +1,113 @@
-const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const cors = require('cors');
-const serverless = require('serverless-http');
-// const cloudinary = require('cloudinary').v2; // <--- ΣΧΟΛΙΑΣΕ ΑΥΤΗ
-// const dotenv = require('dotenv'); // <--- ΣΧΟΛΙΑΣΕ ΑΥΤΗ
+// public/script.js
 
-// dotenv.config(); // <--- ΣΧΟΛΙΑΣΕ ΑΥΤΗ
+document.addEventListener('DOMContentLoaded', () => {
+    const postForm = document.getElementById('postForm');
+    const postsContainer = document.getElementById('postsContainer');
 
-const app = express();
-
-let db;
-const dbPath = path.resolve('/tmp', 'blog.db');
-
-// Ρύθμιση Cloudinary - ΣΧΟΛΙΑΣΕ ΑΥΤΟ ΤΟ BLOCK ΠΡΟΣΩΡΙΝΑ
-/*
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-*/
-
-function initializeDb() {
-    return new Promise((resolve, reject) => {
-        if (db) {
-            console.log('Database already initialized.');
-            return resolve(db);
-        }
-        console.log('Attempting to initialize database...');
-        db = new sqlite3.Database(dbPath, (err) => {
-            if (err) {
-                console.error('CRITICAL: Error connecting to database:', err.message);
-                db = null;
-                return reject(err);
+    // Function to fetch and display posts
+    async function fetchPosts() {
+        try {
+            const response = await fetch('/.netlify/functions/server/api/posts');
+            if (!response.ok) {
+                // Try to parse JSON error message if available
+                const errorText = await response.text();
+                console.error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-            console.log('Successfully connected to the SQLite database.');
-            db.run(`CREATE TABLE IF NOT EXISTS posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL,
-                image_url TEXT,  // Κρατήστε το image_url για την ώρα, δεν πειράζει
-                date DATETIME DEFAULT CURRENT_TIMESTAMP
-            )`, (err) => {
-                if (err) {
-                    console.error('CRITICAL: Error creating table:', err.message);
-                    db = null;
-                    return reject(err);
+            const posts = await response.json();
+            postsContainer.innerHTML = ''; // Clear existing posts
+
+            if (posts.length === 0) {
+                postsContainer.innerHTML = '<p>Δεν υπάρχουν ακόμα άρθρα. Γίνε ο πρώτος που θα δημοσιεύσει!</p>';
+                return;
+            }
+
+            posts.forEach(post => {
+                const postElement = document.createElement('div');
+                postElement.classList.add('post-item');
+
+                let imageUrlHtml = '';
+                if (post.image_url) {
+                    imageUrlHtml = `<img src="<span class="math-inline">\{post\.image\_url\}" alt\="</span>{post.title}" class="post-image">`;
                 }
-                console.log('Posts table ensured to exist.');
-                resolve(db);
+
+                postElement.innerHTML = `
+                    <h3>${post.title}</h3>
+                    <span class="math-inline">\{imageUrlHtml\} <p\></span>{post.content}</p>
+                    <small>${new Date(post.date).toLocaleString()}</small>
+                `;
+                postsContainer.appendChild(postElement);
             });
-        });
-    });
-}
+        } catch (error) {
+            console.error('Error fetching posts:', error);
+            postsContainer.innerHTML = '<p>Σφάλμα φόρτωσης άρθρων. Παρακαλώ δοκιμάστε ξανά αργότερα.</p>';
+        }
+    }
 
-// Middlewares
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+    // Handle form submission
+    postForm.addEventListener('submit', async (event) => {
+        event.preventDefault(); // Prevent default form submission
 
-app.use((req, res, next) => {
-    console.log('Incoming request path:', req.path);
-    console.log('Incoming request URL:', req.url);
-    next();
-});
-
-// API Routes
-app.post('/.netlify/functions/server/api/posts', async (req, res) => {
-    console.log('POST /.netlify/functions/server/api/posts route hit!');
-    try {
-        await initializeDb();
-        console.log('Database initialized successfully for POST request.');
-        const { title, content /*, imageBase64 */ } = req.body; // <--- imageBase64 προσωρινά εκτός
+        const title = document.getElementById('postTitle').value.trim();
+        const content = document.getElementById('postContent').value.trim();
+        const imageFile = document.getElementById('postImage').files[0]; // Get the selected file
 
         if (!title || !content) {
-            return res.status(400).json({ message: 'Title and content are required.' });
+            alert('Ο τίτλος και το περιεχόμενο είναι υποχρεωτικά.');
+            return;
         }
 
-        let imageUrl = null; // Θα είναι πάντα null τώρα
+        let imageBase64 = null;
+        if (imageFile) {
+            // Check file size (e.g., max 5MB)
+            if (imageFile.size > 5 * 1024 * 1024) { // 5 MB
+                alert('Το μέγεθος της εικόνας δεν πρέπει να υπερβαίνει τα 5MB.');
+                return;
+            }
+            // Check file type (optional, already handled by accept="image/*")
+            if (!imageFile.type.startsWith('image/')) {
+                alert('Παρακαλώ επιλέξτε ένα αρχείο εικόνας.');
+                return;
+            }
 
-        // ΣΧΟΛΙΑΣΕ ΟΛΟ ΤΟ CLOUDINARY UPLOAD BLOCK ΠΡΟΣΩΡΙΝΑ
-        /*
-        if (imageBase64) {
             try {
-                const uploadResult = await cloudinary.uploader.upload(imageBase64, {
-                    folder: "blog_images"
+                // Read file as Base64
+                imageBase64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result); // reader.result will be the Base64 string
+                    reader.onerror = reject;
+                    reader.readAsDataURL(imageFile); // Reads the contents of the specified Blob or File.
                 });
-                imageUrl = uploadResult.secure_url;
-                console.log('Image uploaded to Cloudinary:', imageUrl);
-            } catch (uploadErr) {
-                console.error('Error uploading image to Cloudinary:', uploadErr.message);
-                return res.status(500).json({ message: 'Failed to upload image.', error: uploadErr.message });
+            } catch (error) {
+                console.error('Error reading image file:', error);
+                alert('Σφάλμα ανάγνωσης αρχείου εικόνας. Δοκιμάστε ξανά.');
+                return;
             }
         }
-        */
 
-        const stmt = db.prepare('INSERT INTO posts (title, content, image_url) VALUES (?, ?, ?)');
-        stmt.run(title, content, imageUrl, function(err) {
-            if (err) {
-                console.error('Error inserting post:', err.message);
-                return res.status(500).json({ message: 'Failed to publish post.' });
+        try {
+            const response = await fetch('/.netlify/functions/server/api/posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, content, imageBase64 }), // Send image as Base64
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json(); // Attempt to read JSON error from server
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || 'Unknown error'}`);
             }
-            res.status(201).json({ message: 'Post published successfully!', postId: this.lastID, imageUrl: imageUrl });
-        });
-        stmt.finalize();
-    } catch (err) {
-        console.error('Unhandled error in POST route execution:', err);
-        res.status(500).json({ message: 'A server error occurred.', error: err.message });
-    }
-});
 
-app.get('/.netlify/functions/server/api/posts', async (req, res) => {
-    console.log('GET /.netlify/functions/server/api/posts route hit!');
-    try {
-        await initializeDb();
-        console.log('Database initialized successfully for GET request.');
-        db.all('SELECT * FROM posts ORDER BY date DESC', [], (err, rows) => {
-            if (err) {
-                console.error('Error fetching posts:', err.message);
-                return res.status(500).json({ message: 'Failed to fetch posts.' });
-            }
-            res.status(200).json(rows);
-        });
-    } catch (err) {
-        console.error('Unhandled error in GET route execution:', err);
-        res.status(500).json({ message: 'Database initialization failed.', error: err.message });
-    }
-});
+            alert('Άρθρο δημοσιεύτηκε επιτυχώς!');
+            postForm.reset(); // Clear form fields
+            fetchPosts(); // Refresh posts list to show the new post
+        } catch (error) {
+            console.error('Σφάλμα σύνδεσης με τον server:', error);
+            alert('Αποτυχία δημοσίευσης άρθρου: ' + error.message);
+        }
+    });
 
-app.all('*', (req, res) => {
-    console.log('Caught by ALL route:', req.method, req.path);
-    res.status(404).json({ message: `Route not found by Express for ${req.method} ${req.path}`, fullPath: req.url });
+    // Initial fetch of posts when the page loads
+    fetchPosts();
 });
-
-module.exports.handler = serverless(app);
