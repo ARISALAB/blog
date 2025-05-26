@@ -3,3 +3,4 @@
   functions = "netlify/functions/server" # Αυτό πρέπει να είναι ο φάκελος που περιέχει test-function.js
 
 [functions]
+  # node_bundler = "esbuild"  <-- Βεβαιώσου ότι αυτή η γραμμή ΔΕΝ ΕΙΝΑΙ ΕΝΕΡΓΗ
