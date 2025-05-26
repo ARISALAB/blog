@@ -1,6 +1,7 @@
+# netlify.toml
 [build]
   publish = "public"
-  functions = "netlify/functions/server" # Αυτό πρέπει να είναι ο φάκελος που περιέχει test-function.js
+  functions = "netlify/functions"
 
-[functions]
-  # node_bundler = "esbuild"  <-- Βεβαιώσου ότι αυτή η γραμμή ΔΕΝ ΕΙΝΑΙ ΕΝΕΡΓΗ
+[[plugins]]
+package = "@netlify/plugin-functions-install-core"
