@@ -2,9 +2,9 @@
   "name": "my-blog-app",
   "version": "1.0.0",
   "description": "My full-stack blog with Netlify Functions",
-  "main": "index.js", // Δεν έχει σημασία για το Netlify Functions, απλά placeholder
+  "main": "index.js",
   "scripts": {
-    "start": "node netlify/functions/server/server.js" // Προαιρετικό, για τοπική δοκιμή
+    "start": "node netlify/functions/server/server.js"
   },
   "keywords": [],
   "author": "",
