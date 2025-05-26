@@ -1,74 +1,27 @@
+// netlify/functions/server/server.js
 const express = require('express');
+const serverless = require('serverless-http');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const cors = require('cors');
-const serverless = require('serverless-http'); // Εισαγωγή του serverless-http
 
 const app = express();
+const router = express.Router(); // Δημιουργία router
 
-// ΣΗΜΑΝΤΙΚΗ ΣΗΜΕΙΩΣΗ ΓΙΑ SQLITE ΣΕ NETLIFY FUNCTIONS:
-// Η βάση δεδομένων SQLite σε αρχείο (blog.db) ΔΕΝ είναι ιδανική για μόνιμη αποθήκευση
-// σε serverless περιβάλλοντα όπως το Netlify Functions / AWS Lambda.
-// Το filesystem του function είναι πρόσκαιρο (ephemeral), που σημαίνει
-// ότι τα δεδομένα που αποθηκεύονται σε blog.db θα χαθούν όταν το function "κοιμάται"
-// (π.χ. μετά από λίγη ώρα αδράνειας) και ξαναξυπνήσει (cold start).
-// Για ένα PRODUCTION blog, θα χρειαστείτε μια εξωτερική βάση δεδομένων
-// (π.χ. MongoDB Atlas, PostgreSQL στο Render/Supabase/ElephantSQL, FaunaDB κ.λπ.).
-// Αυτή η υλοποίηση είναι για επίδειξη του Netlify Functions και τοπική ανάπτυξη.
+// ... (η λογική σου initializeDb function) ...
 
-// Δημιουργία και σύνδεση με τη βάση δεδομένων SQLite
-// Χρησιμοποιούμε /tmp για writable filesystem σε Lambda/Netlify Functions
-const dbPath = path.resolve('/tmp', 'blog.db');
-let db = null; // Θα αρχικοποιούμε τη βάση δεδομένων όταν το function καλείται
+app.use(cors());
+app.use(express.json());
 
-// Συνάρτηση για αρχικοποίηση της βάσης δεδομένων
-function initializeDb() {
-    return new Promise((resolve, reject) => {
-        if (db) {
-            return resolve(db);
-        }
-        db = new sqlite3.Database(dbPath, (err) => {
-            if (err) {
-                console.error('Error connecting to database:', err.message);
-                db = null; // Επαναφορά db σε null σε περίπτωση σφάλματος
-                return reject(err);
-            }
-            console.log('Connected to the SQLite database.');
-            // Δημιουργία πίνακα posts αν δεν υπάρχει
-            db.run(`CREATE TABLE IF NOT EXISTS posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL,
-                date DATETIME DEFAULT CURRENT_TIMESTAMP
-            )`, (err) => {
-                if (err) {
-                    console.error('Error creating table:', err.message);
-                    db = null;
-                    return reject(err);
-                }
-                console.log('Posts table ensured.');
-                resolve(db);
-            });
-        });
-    });
-}
-
-// Middlewares
-app.use(cors()); // Ενεργοποίηση του CORS
-app.use(express.json()); // Για να μπορεί ο server να διαβάζει JSON δεδομένα από τα requests
-
-// API Routes
-
-// 1. POST /api/posts: Δημιουργία νέου άρθρου
-app.post('/api/posts', async (req, res) => {
+// Προσθέτουμε τα routes στον router
+router.post('/api/posts', async (req, res) => {
+    console.log('Received POST request for /api/posts via router');
     try {
-        await initializeDb(); // Σιγουρευόμαστε ότι η βάση δεδομένων είναι αρχικοποιημένη
+        await initializeDb();
         const { title, content } = req.body;
-
         if (!title || !content) {
             return res.status(400).json({ message: 'Title and content are required.' });
         }
-
         const stmt = db.prepare('INSERT INTO posts (title, content) VALUES (?, ?)');
         stmt.run(title, content, function(err) {
             if (err) {
@@ -83,10 +36,10 @@ app.post('/api/posts', async (req, res) => {
     }
 });
 
-// 2. GET /api/posts: Ανάκτηση όλων των άρθρων
-app.get('/api/posts', async (req, res) => {
+router.get('/api/posts', async (req, res) => {
+    console.log('Received GET request for /api/posts via router');
     try {
-        await initializeDb(); // Σιγουρευόμαστε ότι η βάση δεδομένων είναι αρχικοποιημένη
+        await initializeDb();
         db.all('SELECT * FROM posts ORDER BY date DESC', [], (err, rows) => {
             if (err) {
                 console.error('Error fetching posts:', err.message);
@@ -99,25 +52,16 @@ app.get('/api/posts', async (req, res) => {
     }
 });
 
-// Η Express εφαρμογή μας ως Netlify Function
-// Το "/server" στο URL /.netlify/functions/server προέρχεται από το όνομα του φακέλου "server"
-module.exports.handler = serverless(app);
+// ΣΗΜΑΝΤΙΚΟ: Συνδέουμε τον router στην εφαρμογή.
+// Το serverless-http θα αφαιρέσει το /.netlify/functions/server/, οπότε το router θα δει το /api/posts.
+// Επομένως, το router δεν χρειάζεται να έχει το πλήρες path.
+app.use('/api', router); // Mount the router at /api so it handles /api/posts
 
-// Σημείωση: Δεν χρειάζεται app.listen() εδώ, καθώς το Netlify χειρίζεται την εκκίνηση του function.
-// ... (ο υπάρχων κώδικας του server.js) ...
-
-// Πρόσθεσε αυτό για debugging:
-app.use((req, res, next) => {
-    console.log('Incoming request path:', req.path);
-    console.log('Incoming request URL:', req.url);
-    next(); // Προχωράει στο επόμενο middleware/route
-});
-
-// Αυτό το route θα "πιάσει" όλα τα αιτήματα που δεν ταιριάζουν με τις προηγούμενες routes
+// Αν θέλεις ένα catch-all για debugging (όπως πριν)
 app.all('*', (req, res) => {
     console.log('Caught by ALL route:', req.method, req.path);
-    res.status(404).json({ message: `Route not found for ${req.method} ${req.path}`, fullPath: req.url });
+    res.status(404).json({ message: `Route not found by Express for ${req.method} ${req.path}`, fullPath: req.url });
 });
 
-// Εξαγωγή της Express εφαρμογής ως serverless function
+
 module.exports.handler = serverless(app);
