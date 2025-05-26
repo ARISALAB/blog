@@ -1,7 +1,6 @@
 [build]
   publish = "public"
-  functions = "netlify/functions"
+  functions = "netlify/functions/server" # Αυτό πρέπει να είναι ο φάκελος που περιέχει test-function.js
 
-# [functions]
-#   node_bundler = "esbuild" # Σχολίασέ το ή διέγραψέ το
-#   directory = "netlify/functions" # Αυτό επίσης
+[functions]
+  node_bundler = "esbuild" # Δοκίμασε χωρίς αυτό για σιγουριά αν το πρόβλημα επιμένει
