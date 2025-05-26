@@ -40,7 +40,7 @@ function initializeDb() {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 content TEXT NOT NULL,
-                image_url TEXT,  // Κρατήστε το image_url για την ώρα, δεν πειράζει
+                image_url TEXT, 
                 date DATETIME DEFAULT CURRENT_TIMESTAMP
             )`, (err) => {
                 if (err) {
