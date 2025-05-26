@@ -1,0 +1,7 @@
+[build]
+  publish = "public"  # Ο φάκελος με τα front-end αρχεία για δημοσίευση
+  functions = "netlify/functions" # Ο φάκελος όπου βρίσκονται τα functions σου
+
+[functions]
+  node_bundler = "esbuild" # Προτείνεται για ταχύτερα builds
+  directory = "netlify/functions" # Διασφαλίζει ότι ψάχνει εκεί για functions
