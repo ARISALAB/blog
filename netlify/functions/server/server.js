@@ -68,3 +68,45 @@ app.all('*', (req, res) => {
 });
 
 module.exports.handler = serverless(app);
+// ...
+function initializeDb() {
+    return new Promise((resolve, reject) => {
+        if (db) {
+            console.log('Database already initialized.'); // Πρόσθεσε αυτό
+            return resolve(db);
+        }
+        console.log('Attempting to initialize database...'); // Πρόσθεσε αυτό
+        db = new sqlite3.Database(dbPath, (err) => {
+            if (err) {
+                console.error('CRITICAL: Error connecting to database:', err.message); // Ενίσχυσε το log
+                db = null;
+                return reject(err);
+            }
+            console.log('Successfully connected to the SQLite database.'); // Πρόσθεσε αυτό
+            db.run(`CREATE TABLE IF NOT EXISTS posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                date DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err) => {
+                if (err) {
+                    console.error('CRITICAL: Error creating table:', err.message); // Ενίσχυσε το log
+                    db = null;
+                    return reject(err);
+                }
+                console.log('Posts table ensured to exist.'); // Πρόσθεσε αυτό
+                resolve(db);
+            });
+        });
+    });
+}
+
+// ... μέσα στο app.post και app.get ...
+try {
+    await initializeDb();
+    console.log('Database initialized successfully for this request.'); // Πρόσθεσε αυτό
+    // ...
+} catch (err) {
+    console.error('Unhandled error in route execution:', err); // Πρόσθεσε αυτό
+    res.status(500).json({ message: 'A server error occurred.', error: err.message });
+}
