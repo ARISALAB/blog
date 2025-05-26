@@ -1,10 +1,11 @@
 {
-  "name": "my-blog-app",
+  "name": "server-function",
   "version": "1.0.0",
-  "description": "My full-stack blog with Netlify Functions",
-  "main": "index.js",
+  "description": "Netlify Function for Blog Backend",
+  "main": "server.js",
+  "type": "commonjs", 
   "scripts": {
-    "start": "node netlify/functions/server/server.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
