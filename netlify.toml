@@ -1,7 +1,11 @@
-# netlify.toml
 [build]
   publish = "public"
-  functions = "netlify/functions"
+  # functions = "netlify/functions/server" # <--- ΑΥΤΟ ΕΙΝΑΙ ΛΑΘΟΣ, ΣΧΟΛΙΑΣΕ ΤΟ
+
+[functions]
+  # Βεβαιώσου ότι αυτό το path είναι σωστό και δείχνει στον φάκελο "server"
+  directory = "netlify/functions/server" # <--- ΔΙΟΡΘΩΣΕ ΑΥΤΟ ΤΟ PATH
+  # node_bundler = "esbuild" # <--- Βεβαιώσου ότι αυτή η γραμμή ΔΕΝ ΕΙΝΑΙ ΕΝΕΡΓΗ
 
 [[plugins]]
 package = "@netlify/plugin-functions-install-core"
