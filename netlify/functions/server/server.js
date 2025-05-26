@@ -104,3 +104,20 @@ app.get('/api/posts', async (req, res) => {
 module.exports.handler = serverless(app);
 
 // Σημείωση: Δεν χρειάζεται app.listen() εδώ, καθώς το Netlify χειρίζεται την εκκίνηση του function.
+// ... (ο υπάρχων κώδικας του server.js) ...
+
+// Πρόσθεσε αυτό για debugging:
+app.use((req, res, next) => {
+    console.log('Incoming request path:', req.path);
+    console.log('Incoming request URL:', req.url);
+    next(); // Προχωράει στο επόμενο middleware/route
+});
+
+// Αυτό το route θα "πιάσει" όλα τα αιτήματα που δεν ταιριάζουν με τις προηγούμενες routes
+app.all('*', (req, res) => {
+    console.log('Caught by ALL route:', req.method, req.path);
+    res.status(404).json({ message: `Route not found for ${req.method} ${req.path}`, fullPath: req.url });
+});
+
+// Εξαγωγή της Express εφαρμογής ως serverless function
+module.exports.handler = serverless(app);
